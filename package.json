@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A Yarn package to automatically build the @oss-dmg/l3monkleys-collection",
   "main": "index.js",
+  "scripts": {
+    "install": "node install.js"
+  },
   "repository": "https://github.com/oss-dmg/l3monkeys-builder.git",
   "author": "Benny Nystroem <benny.nystroem@derikmediagroup.xyz>",
   "license": "GNU General Public License",

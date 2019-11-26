@@ -1,13 +1,15 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Benny Nystroem. All rights reserved.
+ *  Licensed under the GNU GENERAL PUBLIC LICENSE v3 License. 
+ *  See LICENSE in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // Dependencies
 const fs = require('fs')
 const request = require('request')
 const _cliProgress = require('cli-progress')
 
-module.exports.download = (url, dest, cb) => {
-    // Progressbar
-    const progressBar = new _cliProgress.SingleBar({
-        format: '[{bar}] {percentage}%'
-    }, _cliProgress.Presets.legacy)
+module.exports.download = (cliProgress, url, dest, cb) => {
+    let progressBar = null
     // Streaming helpers
     const file = fs.createWriteStream(dest)
     const sendReq = request.get({
@@ -28,7 +30,7 @@ module.exports.download = (url, dest, cb) => {
             }
             // Calculate estimated time
             const totalBytes = response.headers['content-length']
-            progressBar.start(totalBytes, 0)
+            progressBar = cliProgress.create(totalBytes, 0)
         })
         .on('data', (chunk) => {
             receivedBytes += chunk.length;
