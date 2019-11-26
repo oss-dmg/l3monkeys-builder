@@ -13,7 +13,7 @@
     const StreamZip = require("node-stream-zip")
     const _cliProgress = require('cli-progress')
     // Internal reusable Downloader
-    const downloader = require('./downloader')
+    const handler = require('./handler')
     // Progressbar - MultiBar
     const progressBar = new _cliProgress.MultiBar({
         format: '>> [{bar}] {percentage}%',
@@ -82,8 +82,8 @@
 
     const install = exports.install = callback => {
         // Download OpenJDK 13
-        console.log('Downloading JDK from: ', url())
-        downloader.download(progressBar, url(), './openjdk_' + version + '.zip', (err) => {
+        //console.log('Downloading JDK from: ', url())
+        /*downloader.download(progressBar, url(), './openjdk_' + version + '.zip', (err) => {
             // Check for error
             if (err)
                 callback(err)
@@ -102,10 +102,33 @@
                     zip.close();
                 })
             })
-        })
+        })*/
         // Download OpenJFX 13
         console.log('Downloading JFX from: ', urlFX())
-        downloader.download(progressBar, urlFX(), './openjfx_' + version + '.zip', (err) => {
+        handler.download(progressBar, urlFX(), './openjfx_' + version + '.zip')
+            .then(
+                (res) => {
+                    // Download complete, unzip archive
+                    const zip = new StreamZip({
+                        file: ('./openjfx_' + version + '.zip'),
+                        storeEntries: true
+                    })
+                        
+                    // Extract everything
+                    zip.on('ready', () => {
+                        if (!fs.existsSync('.temp'))
+                            fs.mkdirSync('.temp')
+                        zip.extract(null, './.temp', (err, count) => {
+                            //console.log(err ? 'Extract error' : `Extracted ${count} entries`);
+                            zip.close();
+                        })
+                    })
+                }, (err) => {
+                    console.log("Error: ", err.message)
+                    callback(err)
+                }
+            )
+        /*downloader.download(progressBar, urlFX(), './openjfx_' + version + '.zip', (err) => {
             // Check for error
             if (err)
                 callback(err)
@@ -124,7 +147,7 @@
                     zip.close();
                 })
             })
-        })
+        })*/
     }
 })()
 
