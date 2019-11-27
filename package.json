@@ -14,5 +14,13 @@
     "cli-progress": "^3.4.0",
     "node-stream-zip": "^1.8.2",
     "request": "^2.88.0"
+  },
+  "devDependencies": {
+    "pkg": "^4.4.0"
+  },
+  "pkg": {
+    "targets": [
+      "node10"
+    ]
   }
 }

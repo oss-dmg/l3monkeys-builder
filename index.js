@@ -8,15 +8,14 @@
 (function(){
     // Dependencies
     const os = require('os')
-    const fs = require('fs')
+    const path = require("path")
     const process = require('process')
-    const StreamZip = require("node-stream-zip")
     const _cliProgress = require('cli-progress')
     // Internal reusable Downloader
     const handler = require('./handler')
     // Progressbar - MultiBar
     const progressBar = new _cliProgress.MultiBar({
-        format: '>> [{bar}] {percentage}%',
+        format: '>> {filename} [{bar}] {percentage}%',
         clearOnComplete: false,
         hideCursor: true,
         stream: process.stdout,
@@ -28,6 +27,11 @@
     const build_number = '9'
     const hash = 'cec27d702aa74d5a8630c65ae61e4305'
     const version = major_version + '.' + update_number
+
+    const mvn_major_version = '3'
+    const mvn_minor_version = '6'
+    const mvn_patch_version = '3'
+    const mvn_version = mvn_major_version + '.' + mvn_minor_version + '.' + mvn_patch_version
 
     // Failer, like Logger.fail(messahe)
     const fail = reason => {
@@ -78,15 +82,24 @@
         'https://download2.gluonhq.com/openjfx/' + 
             version + '/' +
             'openjfx-' + version + '_' + platform() + '-' + arch() + '_bin-jmods.zip'//'13.0.1/openjfx-13.0.1_linux-x64_bin-jmods.zip'
+    // URL Maven creator
+    const urlMVN = exports.urlMVN = () =>
+        `https://www-us.apache.org/dist/maven/` +
+            `maven-${mvn_major_version}/${mvn_version}/binaries/apache-maven-${mvn_version}-bin` + (
+                platform() === 'windows' ? '.zip' : '.tar.gz'
+            )
 
 
     const install = exports.install = callback => {
         // Download OpenJDK 13
-        console.log('Downloading JDK from: ', url())
+        // console.log('Downloading JDK from: ', url())
         // Download OpenJFX 13
-        console.log('Downloading JFX from: ', urlFX())
-        let dwlds = [handler.download(progressBar, url(), './openjdk_' + version + '.zip'),
-                     handler.download(progressBar, urlFX(), './openjfx_' + version + '.zip')]
+        // console.log('Downloading JFX from: ', urlFX())
+        console.log('Fetching prerequisites...')
+        let dwlds = [handler.download(progressBar, url(), `./openjdk_${version}`+(platform()==='windows'?'.zip':'.tar.gz')),
+                     handler.download(progressBar, urlFX(), `./openjfx_${version}`+(platform()==='windows'?'.zip':'.tar.gz')),
+                     handler.download(progressBar, urlMVN(), `./maven_${mvn_version}`+(platform()==='windows'?'.zip':'.tar.gz'))
+                    ]
 
         // Reflect Promises
         const reflect = p => p.then(v => ({v, status: 'completed' }),
@@ -99,25 +112,35 @@
                 return callback("Abort, recieved invalid objects!")
             if (stepComplete.length <= 0)
                 return callback("Abort, none of the required files were downloaded!")
+            if (stepComplete.length < dwlds.length)
+                return callback("Some prerequisites could not be fetched! Aborting...")
             // The length of `stepComplete` is here >= 1
             progressBar.stop() // Stop the whole MultiBar
             // Create an empty line as wrapper
             console.log(" ")
+            console.log("Unzipping prerequisites...")
+            let zips = [/*handler.unzip(stepComplete[0].v), handler.unzip(stepComplete[1].v), handler.unzip(stepComplete[2].v)*/]
             // forEach completed download, start the unzipper
             stepComplete.forEach(item => {
-                // Download complete, unzip archive
-                const zip = new StreamZip({
-                    file: item.v,
-                    storeEntries: true
-                })
-                // Extract everything
-                zip.on('ready', () => {
-                    if (!fs.existsSync('.temp'))
-                        fs.mkdirSync('.temp')
-                    zip.extract(null, './.temp', (err, count) => {
-                        console.log(err ? 'Extract error' : `Extracted ${count} entries`);
-                        zip.close();
-                    })
+                zips.push(handler.unzip(item.v))
+            })
+            // Wait, until all unzip jobs are done!
+            Promise.all(zips.map(reflect)).then((res) => {
+                let stepComplete = res.filter(x => x.status === 'completed')
+                if (!Array.isArray(stepComplete))
+                    return callback("Abort, recieved invalid objects!")
+                if (stepComplete.length <= 0)
+                    return callback("Abort, none of the required files were downloaded!")
+                if (stepComplete.length < dwlds.length)
+                    return callback("Some prerequisites could not be unzipped! Aborting...")
+                // Create an empty line as wrapper
+                console.log(" ")
+                console.log("Building projects...")
+                const jdk = path.join(__dirname, `/.temp/jdk-${version}`) // Keep in mind, we're setting JAVA_HOME
+                const mvn = path.join(__dirname, `/.temp/apache-maven-${mvn_version}/bin/mvn`) // Keep in mind, we're wanna execute the maven script
+                const project = process.argv.slice(2)[0] // Keep in mind, this is the path to the maven project which needs to be builded
+                handler.install(jdk, mvn, project, platform(), (res) => {
+                    console.log(res)
                 })
             })
         })

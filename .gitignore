@@ -64,5 +64,7 @@ typings/
 # zip archives
 *.zip
 
-# Don't move up old files
+# Don't move up old files and installers
 *_old.*
+*install-*
+*.exe
