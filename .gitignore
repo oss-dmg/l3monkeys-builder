@@ -63,3 +63,6 @@ typings/
 
 # zip archives
 *.zip
+
+# Don't move up old files
+*_old.*

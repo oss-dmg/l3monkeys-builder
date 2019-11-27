@@ -82,72 +82,45 @@
 
     const install = exports.install = callback => {
         // Download OpenJDK 13
-        //console.log('Downloading JDK from: ', url())
-        /*downloader.download(progressBar, url(), './openjdk_' + version + '.zip', (err) => {
-            // Check for error
-            if (err)
-                callback(err)
-            // Download complete, unzip archive
-            const zip = new StreamZip({
-                file: ('./openjdk_' + version + '.zip'),
-                storeEntries: true
-            })
-            
-            // Extract everything
-            zip.on('ready', () => {
-                if (!fs.existsSync('.temp'))
-                    fs.mkdirSync('.temp')
-                zip.extract(null, './.temp', (err, count) => {
-                    //console.log(err ? 'Extract error' : `Extracted ${count} entries`);
-                    zip.close();
-                })
-            })
-        })*/
+        console.log('Downloading JDK from: ', url())
         // Download OpenJFX 13
         console.log('Downloading JFX from: ', urlFX())
-        handler.download(progressBar, urlFX(), './openjfx_' + version + '.zip')
-            .then(
-                (res) => {
-                    // Download complete, unzip archive
-                    const zip = new StreamZip({
-                        file: ('./openjfx_' + version + '.zip'),
-                        storeEntries: true
+        let dwlds = [handler.download(progressBar, url(), './openjdk_' + version + '.zip'),
+                     handler.download(progressBar, urlFX(), './openjfx_' + version + '.zip')]
+
+        // Reflect Promises
+        const reflect = p => p.then(v => ({v, status: 'completed' }),
+                                    e => ({e, status: 'rejected' }))
+
+        // Wait for all Promises
+        Promise.all(dwlds.map(reflect)).then((res) => {
+            let stepComplete = res.filter(x => x.status === 'completed')
+            if (!Array.isArray(stepComplete))
+                return callback("Abort, recieved invalid objects!")
+            if (stepComplete.length <= 0)
+                return callback("Abort, none of the required files were downloaded!")
+            // The length of `stepComplete` is here >= 1
+            progressBar.stop() // Stop the whole MultiBar
+            // Create an empty line as wrapper
+            console.log(" ")
+            // forEach completed download, start the unzipper
+            stepComplete.forEach(item => {
+                // Download complete, unzip archive
+                const zip = new StreamZip({
+                    file: item.v,
+                    storeEntries: true
+                })
+                // Extract everything
+                zip.on('ready', () => {
+                    if (!fs.existsSync('.temp'))
+                        fs.mkdirSync('.temp')
+                    zip.extract(null, './.temp', (err, count) => {
+                        console.log(err ? 'Extract error' : `Extracted ${count} entries`);
+                        zip.close();
                     })
-                        
-                    // Extract everything
-                    zip.on('ready', () => {
-                        if (!fs.existsSync('.temp'))
-                            fs.mkdirSync('.temp')
-                        zip.extract(null, './.temp', (err, count) => {
-                            //console.log(err ? 'Extract error' : `Extracted ${count} entries`);
-                            zip.close();
-                        })
-                    })
-                }, (err) => {
-                    console.log("Error: ", err.message)
-                    callback(err)
-                }
-            )
-        /*downloader.download(progressBar, urlFX(), './openjfx_' + version + '.zip', (err) => {
-            // Check for error
-            if (err)
-                callback(err)
-            // Download complete, unzip archive
-            const zip = new StreamZip({
-                file: ('./openjfx_' + version + '.zip'),
-                storeEntries: true
-            })
-                
-            // Extract everything
-            zip.on('ready', () => {
-                if (!fs.existsSync('.temp'))
-                    fs.mkdirSync('.temp')
-                zip.extract(null, './.temp', (err, count) => {
-                    //console.log(err ? 'Extract error' : `Extracted ${count} entries`);
-                    zip.close();
                 })
             })
-        })*/
+        })
     }
-})()
 
+})()
