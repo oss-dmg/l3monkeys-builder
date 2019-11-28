@@ -99,13 +99,17 @@ module.exports.unzip = (dest) => {
 module.exports.install = (jdk, mvn, project, platform, callback) => {
     const { spawn } = require('child_process')
     let child = null
+    let cmds = []
 
     switch (platform) {
         case 'macosx':
             child = spawn(`cd ${project} && touch .mavenrc && echo "JAVA_HOME=${jdk}" > .mavenrc && ${mvn} package`)
             break;
         case 'windows':
-            child = spawn(`set JAVA_HOME=${jdk} && cd ${project} && ${mvn}.cmd package`)
+            //child = spawn(`set JAVA_HOME=${jdk} && cd ${project} && ${mvn}.cmd package`)
+            child = spawn('cmd')
+            //child = spawn(process.env.comspec, ['/c', `set JAVA_HOME=\"${jdk}\"\n & echo %JAVA_HOME%`], { cwd: `${project}` })
+            cmds.push(`set JAVA_HOME=\"${jdk}\"\n`, "echo %JAVA_HOME%\n", `${mvn}.cmd package\n`)
             break;
         case 'linux':
             child = spawn(`cd ${project} && JAVA_HOME=${jdk} ${mvn} package`)
@@ -113,11 +117,48 @@ module.exports.install = (jdk, mvn, project, platform, callback) => {
         default:
             return callback("Platform undefined, aborting installer...")
     }
+    // Pipe output to our main process
+    child.stdout.pipe(process.stdout)
+    // Event handling
     child.stderr.on('data', (data) => {
         return callback(`Subprocess throws an error: ${data}`)
     })
     child.stdout.on('data', (data) => {
-        console.log(data)
+        //console.log(data.toString())
+        if (data.toString().toUpperCase().indexOf("BUILD FAILURE") > -1) {
+            // Do nothing here, for now
+        }
+    })
+    child.on('error', (err) => {
+        return callback(err)
+    })
+    child.on('exit', (code, signal) => {
+        return callback(`Subprocess exited with ${code} and ${signal}`)
+    })
+    // Execute commands
+    cmds.forEach(cmd => {
+        child.stdin.write(cmd)
+    })
+    child.stdin.end()
+}
+
+module.exports.createJRE = (jdk, cwd, callback) => {
+    const { spawn } = require('child_process')
+    let child = null
+
+    child = spawn('cmd', ['/c', `jlink.exe --module-path ${jdk}\\jmods --add-modules java.base,java.logging,java.xml,javafx.base,javafx.controls,javafx.fxml,javafx.graphics,javafx.swing,javafx.media,javafx.web,jdk.unsupported --output ${cwd}\\jre-13.0.1 --strip-debug --compress 2 --no-header-files --no-man-pages`], { cwd: `${jdk}\\bin`})
+
+    // Pipe output to our main process
+    child.stdout.pipe(process.stdout)
+    // Event handling
+    child.stderr.on('data', (data) => {
+        return callback(`Subprocess throws an error: ${data}`)
+    })
+    child.stdout.on('data', (data) => {
+        console.log(data.toString())
+    })
+    child.on('error', (err) => {
+        return callback(err)
     })
     child.on('exit', (code, signal) => {
         return callback(`Subprocess exited with ${code} and ${signal}`)

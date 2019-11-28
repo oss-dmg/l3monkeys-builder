@@ -4,7 +4,9 @@
   "description": "A Yarn package to automatically build the @oss-dmg/l3monkleys-collection",
   "main": "index.js",
   "scripts": {
-    "install": "node install.js"
+    "build": "yarn run clean && pkg install.js --out-path build/ --targets node10-win-x64,node10-macos-x64",
+    "test": "node install.js",
+    "clean": "rimraf build/*"
   },
   "repository": "https://github.com/oss-dmg/l3monkeys-builder.git",
   "author": "Benny Nystroem <benny.nystroem@derikmediagroup.xyz>",
@@ -16,7 +18,9 @@
     "request": "^2.88.0"
   },
   "devDependencies": {
-    "pkg": "^4.4.0"
+    "@types/node": "^12.12.14",
+    "pkg": "^4.4.0",
+    "rimraf": "^3.0.0"
   },
   "pkg": {
     "targets": [

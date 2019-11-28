@@ -136,10 +136,24 @@
                 // Create an empty line as wrapper
                 console.log(" ")
                 console.log("Building projects...")
-                const jdk = path.join(__dirname, `/.temp/jdk-${version}`) // Keep in mind, we're setting JAVA_HOME
-                const mvn = path.join(__dirname, `/.temp/apache-maven-${mvn_version}/bin/mvn`) // Keep in mind, we're wanna execute the maven script
-                const project = process.argv.slice(2)[0] // Keep in mind, this is the path to the maven project which needs to be builded
+                const jdk = path.join(process.cwd(), `/.temp/jdk-${version}`) // Keep in mind, we're setting JAVA_HOME
+                const mvn = path.join(process.cwd(), `/.temp/apache-maven-${mvn_version}/bin/mvn`) // Keep in mind, we're wanna execute the maven script
+                const project = path.join(process.cwd(), process.argv.slice(2)[0]) // Keep in mind, this is the path to the maven project which needs to be builded
                 handler.install(jdk, mvn, project, platform(), (res) => {
+                    console.log(res)
+                })
+                // Create an empty line as wrapper
+                console.log(" ")
+                console.log("Generating custom JRE...")
+                const fs = require('fs')
+                const { COPYFILE_EXCL, COPYFILE_FICLONE } = fs.constants
+                const jfx = path.join(process.cwd(), `/.temp/javafx-jmods-${version}`)
+                let files = fs.readdirSync(`${jfx}`)
+                console.log(files)
+                files.forEach(file => {
+                    fs.copyFileSync(path.join(jfx, `/${file}`), path.join(jdk, `/jmods/${file}`), COPYFILE_EXCL | COPYFILE_FICLONE)
+                })
+                handler.createJRE(jdk, path.join(process.cwd(), '/.temp/'), (res) => {
                     console.log(res)
                 })
             })
